@@ -1,4 +1,12 @@
-import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  CreateDateColumn,
+  Entity, JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { productos } from '../../infraestructure/microservice/entities';
 
 @Entity({
   schema: 'sch_main',
@@ -9,11 +17,12 @@ export class packs {
   idpack: number;
 
   @PrimaryColumn('int')
-  idproductopadre: number;
+  idproducto: number;
 
-  @PrimaryColumn('int')
-  idproductobase: number;
+  @CreateDateColumn()
+  creationdate: Date;
 
-  @Column('int')
-  productbasequantity: number;
+  @OneToOne(() => productos, (producto) => producto.idproducto)
+  @JoinColumn({ name: 'idproducto' })
+  infoPack: productos;
 }

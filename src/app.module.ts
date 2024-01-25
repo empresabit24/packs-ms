@@ -2,16 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import * as process from 'process';
-
 import { PacksModule } from './packs/packs.module';
-import { parametros } from './infraestructure/microservice/entities/parametros.entity';
-import { productos } from './infraestructure/microservice/entities/productos.entity';
-import { productoslocal } from './infraestructure/microservice/entities/productoslocal.entity';
+
+import * as entities from './infraestructure/microservice/entities';
+
 import { packs } from './packs/entities/pack.entity';
-import { stockproductostienda } from './infraestructure/microservice/entities/stockproductostienda.entity';
-import { preciostipocliente } from './infraestructure/microservice/entities/preciostipocliente.entity';
-import { movimientos } from './infraestructure/microservice/entities/movimientos.entity';
+import { productospack } from './packs/entities/productospack.entity';
 @Module({
   imports: [
     ConfigModule.forRoot(), // Carga y accede a la configuración de la aplicación desde variables de entorno.
@@ -24,13 +20,15 @@ import { movimientos } from './infraestructure/microservice/entities/movimientos
       //autoLoadEntities: true,
       //synchronize: true,
       entities: [
-        parametros,
-        productos,
-        productoslocal,
+        entities.parametros,
+        entities.productos,
+        entities.productoslocal,
+        entities.stockproductostienda,
+        entities.preciostipocliente,
+        entities.movimientos,
+        entities.marcas,
+        productospack,
         packs,
-        stockproductostienda,
-        preciostipocliente,
-        movimientos,
       ],
       schema: 'sch_main',
     }),

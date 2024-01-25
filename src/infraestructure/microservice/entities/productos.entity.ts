@@ -1,6 +1,14 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { packs } from 'src/packs/entities/pack.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { marcas } from './marcas.entity';
 @Entity({
-  schema: 'sch_main',
+  name: 'productos',
 })
 export class productos {
   @PrimaryGeneratedColumn()
@@ -65,4 +73,8 @@ export class productos {
 
   @Column('text')
   barcode: string;
+
+  @OneToOne(() => marcas, (marca) => marca.idmarca)
+  @JoinColumn({ name: 'idmarca' })
+  marca: marcas;
 }

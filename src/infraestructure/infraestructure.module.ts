@@ -6,6 +6,7 @@ import { productoslocal } from './microservice/entities/productoslocal.entity';
 import { stockproductostienda } from './microservice/entities/stockproductostienda.entity';
 import { preciostipocliente } from './microservice/entities/preciostipocliente.entity';
 import { movimientos } from './microservice/entities/movimientos.entity';
+import { marcas } from './microservice/entities/marcas.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { movimientos } from './microservice/entities/movimientos.entity';
       stockproductostienda,
       preciostipocliente,
       movimientos,
+      marcas,
     ]),
   ],
 

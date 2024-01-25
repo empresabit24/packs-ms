@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({
-  schema: 'sch_main',
+  name: 'stockproductostienda',
 })
 export class stockproductostienda {
   @PrimaryGeneratedColumn()

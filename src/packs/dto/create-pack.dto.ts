@@ -1,86 +1,41 @@
 import {
-  IsBoolean,
-  IsInt,
   IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
+  IsArray,
   ValidateNested,
+  IsNotEmpty,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class Subclase {
-  @IsInt()
+class SubclaseDTO {
+  @IsNumber()
   idsubclase: number;
 }
 
-class Marca {
-  @IsInt()
+class MarcaDTO {
+  @IsNumber()
   idmarca: number;
 }
 
-class Unidad {
-  @IsInt()
-  idunidad: number;
-}
-
-class Presentacion {
-  @IsInt()
-  idpresentation: number;
-}
-
-class PresentacionList {
-  @IsInt()
+class ProductoDTO {
+  @IsNumber()
   idproducto: number;
 
-  @ValidateNested()
-  @Type(() => Presentacion)
-  presentacion: Presentacion;
-
-  @ValidateNested()
-  @Type(() => Unidad)
-  unidad: Unidad;
-
   @IsNumber()
-  @IsOptional()
-  cobertura_min: number;
-
-  @IsNumber()
-  @IsOptional()
-  cobertura_max: number;
-
-  @IsBoolean()
-  aplica_icbper: boolean;
-
-  @IsString()
-  barcode: string;
-
-  @IsString()
-  estilo: string;
-
-  @IsBoolean()
-  presentacionprincipal: boolean;
-
-  @IsNumber()
-  @IsPositive()
-  precioestandar: number;
+  productquantity: number;
 }
 
 export class CreatePackDto {
-  @IsString()
+  @IsNotEmpty()
   producto: string;
 
   @ValidateNested()
-  @Type(() => Subclase)
-  subclase: Subclase;
+  @Type(() => SubclaseDTO)
+  subclase: SubclaseDTO;
 
   @ValidateNested()
-  @Type(() => Marca)
-  marca: Marca;
-
-  @ValidateNested()
-  @Type(() => Unidad)
-  unidad: Unidad;
+  @Type(() => MarcaDTO)
+  marca: MarcaDTO;
 
   @IsNumber()
   cobertura_min: number;
@@ -88,13 +43,24 @@ export class CreatePackDto {
   @IsNumber()
   cobertura_max: number;
 
-  @IsInt()
-  afectacion_igv: number;
+  @IsNumber()
+  costo: number;
 
-  @IsBoolean()
-  aplica_icbper: boolean;
+  @IsNumber()
+  precioestandar: number;
 
+  @IsNumber()
+  porcentajeganancia: number;
+
+  @IsNumber()
+  idlocal: number;
+
+  @IsNumber()
+  packquantity: number;
+
+  @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => PresentacionList)
-  presentacion_list: PresentacionList[];
+  @Type(() => ProductoDTO)
+  @IsOptional()
+  productos?: ProductoDTO[];
 }

@@ -1,15 +1,27 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
-import { packs } from './entities/pack.entity';
 import { UpdatePackDto } from './dto/update-pack.dto';
-import { productos } from '../infraestructure/microservice/entities/productos.entity';
-import { parametros } from '../infraestructure/microservice/entities/parametros.entity';
-import { productoslocal } from '../infraestructure/microservice/entities/productoslocal.entity';
-import { stockproductostienda } from '../infraestructure/microservice/entities/stockproductostienda.entity';
-import { preciostipocliente } from '../infraestructure/microservice/entities/preciostipocliente.entity';
-import { movimientos } from '../infraestructure/microservice/entities/movimientos.entity';
+import { CreatePackDto } from './dto/create-pack.dto';
+
+import {
+  productos,
+  parametros,
+  productoslocal,
+  stockproductostienda,
+  preciostipocliente,
+  movimientos,
+} from '../infraestructure/microservice/entities';
+
+import { packs } from './entities/pack.entity';
+import { productospack } from './entities/productospack.entity';
 
 @Injectable()
 export class PacksService {
@@ -20,31 +32,34 @@ export class PacksService {
     private readonly movimientosRepository: Repository<movimientos>,
 
     @InjectRepository(packs)
-    private readonly packRepository: Repository<packs>,
+    private readonly packsRepository: Repository<packs>,
+
+    @InjectRepository(productospack)
+    private readonly productosPackRepository: Repository<productospack>,
 
     @InjectRepository(productos)
-    private productRepository: Repository<productos>,
+    private productosRepository: Repository<productos>,
 
     @InjectRepository(parametros)
-    private parameterRepository: Repository<parametros>,
+    private parametrosRepository: Repository<parametros>,
 
     @InjectRepository(productoslocal)
     private productosLocalRepository: Repository<productoslocal>,
 
     @InjectRepository(stockproductostienda)
-    private stockproductostienda: Repository<stockproductostienda>,
+    private stockProductosTiendaRepository: Repository<stockproductostienda>,
 
     @InjectRepository(preciostipocliente)
-    private preciostipocliente: Repository<preciostipocliente>,
+    private preciosTipoClienteRepository: Repository<preciostipocliente>,
   ) {}
-  async create(createPackDto: any) {
+  async create(createPackDto: CreatePackDto) {
     try {
       const productosIds = createPackDto.productos.map(
         (producto) => producto.idproducto,
       );
 
       // Obtener información de productos en una sola consulta
-      const productosInfo = await this.productRepository.find({
+      const productosInfo = await this.productosRepository.find({
         where: { idproducto: In(productosIds) },
       });
 
@@ -57,10 +72,10 @@ export class PacksService {
       });
 
       // Obtener stock de productos
-      const stockProductos = await this.stockproductostienda.find({
+      const stockProductos = await this.stockProductosTiendaRepository.find({
         where: {
           idproductolocal: In(
-            productosLocal.map((local) => local.idproductolocal),
+            productosLocal.map((local) => Number(local.idproductolocal)),
           ),
         },
       });
@@ -69,11 +84,11 @@ export class PacksService {
       for (let i = 0; i < createPackDto['productos'].length; i++) {
         const producto = createPackDto['productos'][i];
         const infoProduct = productosInfo.find(
-          (info) => info.idproducto === producto.idproducto,
+          (info) => info.idproducto === Number(producto.idproducto),
         );
 
         const localProduct = productosLocal.find(
-          (local) => Number(local.idproducto) === producto.idproducto,
+          (local) => Number(local.idproducto) === Number(producto.idproducto),
         );
 
         const stockProduct = stockProductos.find(
@@ -97,20 +112,22 @@ export class PacksService {
       for (let i = 0; i < createPackDto['productos'].length; i++) {
         const producto = createPackDto['productos'][i];
         const localProduct = productosLocal.find(
-          (local) => Number(local.idproducto) === producto.idproducto,
+          (local) => Number(local.idproducto) === Number(producto.idproducto),
         );
+
         const stockProduct = stockProductos.find(
           (stock) =>
-            Number(stock.idproductolocal) === localProduct.idproductolocal &&
-            stock.idtienda === localProduct.idlocal,
+            Number(stock.idproductolocal) ===
+              Number(localProduct.idproductolocal) &&
+            Number(stock.idtienda) === Number(localProduct.idlocal),
         );
 
         const requiredStock =
           createPackDto.packquantity * producto.productquantity;
 
         // Restar la cantidad del stock
-        await this.stockproductostienda.update(
-          { idproductolocal: stockProduct.idproductolocal },
+        await this.stockProductosTiendaRepository.update(
+          { idproductolocal: Number(stockProduct.idproductolocal) },
           {
             stock: Number(stockProduct.stock) - requiredStock,
             stock_unidades: Number(stockProduct.stock_unidades) - requiredStock,
@@ -118,7 +135,9 @@ export class PacksService {
               Number(stockProduct.stock_presentacion) - requiredStock,
           },
         );
-        this.logger.log('SE RESTÓ EL STOCK DE LOS PRODUCTOS');
+        this.logger.log(
+          `SE RESTÓ EL STOCK DE PRODUCTO CON ID: ${localProduct.idproducto}`,
+        );
 
         // Agregar la resta de productos en la tabla movimientos
         const movimiento = this.movimientosRepository.create({
@@ -128,71 +147,105 @@ export class PacksService {
           entrada: null,
           idusuario: 1,
           stockfinal: Number(stockProduct.stock) - requiredStock,
-          detalle: `{tipo: PACK, Nombre del Pack: ${createPackDto.producto}`,
+          detalle: `{"tipo": "PACK", "PACK": "${createPackDto.producto}"}`,
         });
         await this.movimientosRepository.save(movimiento);
 
-        this.logger.log('SE AGREGÓ EL MOVIMIENTO EN LA TABLA DE PRODUCTOS');
+        this.logger.log(
+          `SE AGREGÓ EL MOVIMIENTO DE PRODUCTO CON ID: ${localProduct.idproducto}`,
+        );
       }
 
-      // OPTIMIZAR: Crear el pack en tabla productos con datos por default (/save)
-      const result = await this.productRepository.query(
+      // Crear el pack en tabla productos con datos por default (/save)
+      const result = await this.productosRepository.query(
         'SELECT sch_main.fn_producto_register();',
       );
 
       const idProductoPadre = await result[0].fn_producto_register.idproducto;
 
-      // Actualizar el producto padre, el hijo y las presentaciones
+      // Actualizar el producto padre, el hijo y las presentaciones (fn_producto_register(data, id) -> en código)
       const productoLocal = await this.updateProduct(
         createPackDto,
         idProductoPadre,
       );
+      this.logger.log(
+        `SE CREÓ EL PRODUCTO PADRE E HIJO EN LA TABLA DE PRODUCTOS`,
+      );
 
       // Ingresar el stock según el local
-      const stockProductosTienda = this.stockproductostienda.create({
-        idproductolocal: productoLocal.idproductolocal,
+      const stockProductosTienda = this.stockProductosTiendaRepository.create({
+        idproductolocal: Number(productoLocal.idproductolocal),
         idtienda: createPackDto.idlocal,
         stock: createPackDto.packquantity,
         stock_unidades: createPackDto.packquantity,
         stock_presentacion: createPackDto.packquantity,
       });
 
-      await this.stockproductostienda.save(stockProductosTienda);
+      await this.stockProductosTiendaRepository.save(stockProductosTienda);
+      this.logger.log(
+        `SE AGREGÓ EL STOCK EN EL LOCAL ${createPackDto.idlocal}`,
+      );
 
       // Ingresar los precios según el cliente
 
       const tiposClientes: number[] = [3, 4];
 
-      for (const idTipoCliente of tiposClientes) {
-        const preciosTipoCliente = this.preciostipocliente.create({
-          idproductolocal: productoLocal.idproductolocal,
-          idtipocliente: idTipoCliente,
-          desde: 1,
-          hasta: 10000,
-          precio: productoLocal.precioestandar,
-          idestado: 3,
-        });
+      await Promise.all(
+        tiposClientes.map(async (idTipoCliente) => {
+          const preciosTipoCliente = this.preciosTipoClienteRepository.create({
+            idproductolocal: Number(productoLocal.idproductolocal),
+            idtipocliente: idTipoCliente,
+            desde: 1,
+            hasta: 10000,
+            precio: productoLocal.precioestandar,
+            idestado: 3,
+          });
 
-        await this.preciostipocliente.save(preciosTipoCliente);
-      }
+          await this.preciosTipoClienteRepository.save(preciosTipoCliente);
+        }),
+      );
 
       // Insertar pack en la base de datos
-      for (let i = 0; i < productosIds.length; i++) {
-        const newPack = {
-          idproductopadre: idProductoPadre,
-          idproductobase: productosIds[i],
-          productbasequantity: createPackDto['productos'][i].productquantity,
+      const nuevoPack = this.packsRepository.create({
+        idproducto: idProductoPadre,
+      });
+      const { idpack } = await this.packsRepository.save(nuevoPack);
+
+      for (let i = 0; i < createPackDto['productos'].length; i++) {
+        const nuevoProductoPack = {
+          idpack: idpack,
+          idproducto: productosIds[i],
+          productquantity: createPackDto['productos'][i].productquantity,
         };
-        const createdPack = this.packRepository.create(newPack);
-        return await this.packRepository.save(createdPack);
+        const createdPack =
+          this.productosPackRepository.create(nuevoProductoPack);
+        await this.productosPackRepository.save(createdPack);
       }
+      this.logger.log(`SE INSERTÓ EL PACK EN LA BASE DE DATOS`);
+      return { message: 'El pack se creó correctamente', success: true };
     } catch (error) {
       this.logger.error(error);
+      throw new HttpException(`${error}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  findAll() {
-    return `This action returns all packs`;
+  async findAll(): Promise<any[]> {
+    const result = await this.packsRepository
+      .createQueryBuilder('pack')
+      .leftJoinAndSelect('pack.infoPack', 'producto')
+      .leftJoinAndSelect('producto.marca', 'marca')
+      .select([
+        'pack.idpack',
+        'pack.idproducto',
+        'pack.creationdate',
+        'producto.producto',
+        'producto.sku',
+        'producto.idestado',
+        'marca',
+      ])
+      .getMany();
+
+    return result;
   }
 
   findOne(id: number) {
@@ -210,16 +263,16 @@ export class PacksService {
   async updateProduct(productData: any, idproducto: number) {
     // Obtener valores predeterminados
     try {
-      const subclaseDefault = await this.parameterRepository.findOne({
+      const subclaseDefault = await this.parametrosRepository.findOne({
         where: { nombre: 'SUBCLASE_DEFAULT' },
       });
 
-      const unidadDefault = await this.parameterRepository.findOne({
+      const unidadDefault = await this.parametrosRepository.findOne({
         where: { nombre: 'UNIDAD_DEFAULT' },
       });
 
       // Obtener producto padre
-      const parentProduct = await this.productRepository.findOne({
+      const parentProduct = await this.productosRepository.findOne({
         where: { idproducto },
       });
 
@@ -237,10 +290,10 @@ export class PacksService {
         parentProduct.cobertura_max = productData.cobertura_max;
 
         // Guardar el producto padre actualizado en la base de datos
-        await this.productRepository.save(parentProduct);
+        await this.productosRepository.save(parentProduct);
 
         // Actualizar el producto hijo actualizado en la base de datos
-        await this.productRepository.update(
+        await this.productosRepository.update(
           { idproducto: idChildProduct },
           {
             producto: parentProduct.producto,
@@ -260,7 +313,7 @@ export class PacksService {
           productoLocal.costo = productData.costo;
 
           if (parseInt(String(productoLocal.idlocal)) === productData.idlocal) {
-            productoLocal.precioestandar = productData.costo;
+            productoLocal.precioestandar = productData.precioestandar;
             productoLocal.porcentajeganancia = productData.porcentajeganancia;
           }
           await this.productosLocalRepository.save(productoLocal);

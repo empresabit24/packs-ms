@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'parametros', schema: 'sch_main' })
+@Entity({ name: 'parametros' })
 export class parametros {
   @PrimaryGeneratedColumn()
   idparametro: number;
