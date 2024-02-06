@@ -1,4 +1,3 @@
-import { packs } from 'src/packs/entities/pack.entity';
 import {
   Column,
   Entity,
@@ -7,6 +6,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { marcas } from './marcas.entity';
+import { productoslocal } from './productoslocal.entity';
+import { packs } from '../../../packs/entities/pack.entity';
 @Entity({
   name: 'productos',
 })
@@ -77,4 +78,10 @@ export class productos {
   @OneToOne(() => marcas, (marca) => marca.idmarca)
   @JoinColumn({ name: 'idmarca' })
   marca: marcas;
+
+  @OneToOne(() => packs, (pack) => pack.infoPack)
+  productopack: packs;
+
+  @OneToOne(() => productoslocal, (productolocal) => productolocal.producto)
+  infoProductoLocal: productoslocal;
 }

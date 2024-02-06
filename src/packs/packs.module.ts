@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { PacksService } from './packs.service';
 import { PacksController } from './packs.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { packs } from './entities/pack.entity';
 import { InfraestructureModule } from '../infraestructure/infraestructure.module';
+
+import { packs } from './entities/pack.entity';
 import { productospack } from './entities/productospack.entity';
 
 @Module({

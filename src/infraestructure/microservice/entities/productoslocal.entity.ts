@@ -1,4 +1,12 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+
+import { productos } from './productos.entity';
 
 @Entity({ name: 'productoslocal' })
 export class productoslocal {
@@ -25,4 +33,12 @@ export class productoslocal {
 
   @Column('numeric')
   preciobase: number;
+
+  @OneToOne(() => productos, (producto) => producto.infoProductoLocal)
+  @JoinColumn({ name: 'idproducto' })
+  producto: productos;
+
+  /*@OneToOne(() => packs, (pack) => pack.infoProductoLocal)
+  @JoinColumn({ name: 'idproducto' })
+  infoProducto: packs;*/
 }

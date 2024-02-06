@@ -1,6 +1,16 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { packs } from './pack.entity';
+import { productos } from '../../infraestructure/microservice/entities';
 
 @Entity({
+  schema: 'sch_main',
   name: 'productospack',
 })
 export class productospack {
@@ -15,4 +25,12 @@ export class productospack {
 
   @Column('int')
   productquantity: number;
+
+  @ManyToOne(() => packs, (pack) => pack.productos)
+  @JoinColumn({ name: 'idpack' })
+  pack: packs;
+
+  @OneToOne(() => productos, (producto) => producto.idproducto)
+  @JoinColumn({ name: 'idproducto' })
+  producto: productos;
 }

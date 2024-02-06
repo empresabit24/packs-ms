@@ -1,12 +1,16 @@
 import {
+  Column,
   CreateDateColumn,
-  Entity, JoinColumn,
-  ManyToOne,
+  Entity,
+  JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { productos } from '../../infraestructure/microservice/entities';
+
+import { productospack } from './productospack.entity';
+import { productos } from 'src/infraestructure/microservice/entities';
 
 @Entity({
   schema: 'sch_main',
@@ -16,13 +20,17 @@ export class packs {
   @PrimaryGeneratedColumn()
   idpack: number;
 
-  @PrimaryColumn('int')
+  @Column('int')
   idproducto: number;
 
   @CreateDateColumn()
   creationdate: Date;
 
-  @OneToOne(() => productos, (producto) => producto.idproducto)
+  @OneToOne(() => productos, (producto) => producto.productopack)
   @JoinColumn({ name: 'idproducto' })
   infoPack: productos;
+
+  @OneToMany(() => productospack, (productpack) => productpack.pack)
+  @JoinColumn({ name: 'idpack' })
+  productos: productospack[];
 }

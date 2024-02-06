@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -147,7 +148,7 @@ export class PacksService {
           entrada: null,
           idusuario: 1,
           stockfinal: Number(stockProduct.stock) - requiredStock,
-          detalle: `{"tipo": "PACK", "PACK": "${createPackDto.producto}"}`,
+          detalle: `{"tipo": "CREAR PACK", "PACK": "${createPackDto.producto}"}`,
         });
         await this.movimientosRepository.save(movimiento);
 
@@ -172,7 +173,7 @@ export class PacksService {
         `SE CREÓ EL PRODUCTO PADRE E HIJO EN LA TABLA DE PRODUCTOS`,
       );
 
-      // Ingresar el stock según el local
+      // Ingresar el stock del pack según el local
       const stockProductosTienda = this.stockProductosTiendaRepository.create({
         idproductolocal: Number(productoLocal.idproductolocal),
         idtienda: createPackDto.idlocal,
@@ -181,9 +182,10 @@ export class PacksService {
         stock_presentacion: createPackDto.packquantity,
       });
 
-      await this.stockProductosTiendaRepository.save(stockProductosTienda);
+      const { idstockproductotienda } =
+        await this.stockProductosTiendaRepository.save(stockProductosTienda);
       this.logger.log(
-        `SE AGREGÓ EL STOCK EN EL LOCAL ${createPackDto.idlocal}`,
+        `SE AGREGÓ EL STOCK DEL PACK EN EL LOCAL ${createPackDto.idlocal}`,
       );
 
       // Ingresar los precios según el cliente
@@ -207,7 +209,7 @@ export class PacksService {
 
       // Insertar pack en la base de datos
       const nuevoPack = this.packsRepository.create({
-        idproducto: idProductoPadre,
+        idproducto: productoLocal.idproducto,
       });
       const { idpack } = await this.packsRepository.save(nuevoPack);
 
@@ -222,6 +224,18 @@ export class PacksService {
         await this.productosPackRepository.save(createdPack);
       }
       this.logger.log(`SE INSERTÓ EL PACK EN LA BASE DE DATOS`);
+
+      // Agregar movimiento de creación de pack
+      const movimiento = this.movimientosRepository.create({
+        idtipomovimiento: 16,
+        idstockproductotienda: idstockproductotienda,
+        salida: null,
+        entrada: createPackDto.packquantity,
+        idusuario: 1,
+        stockfinal: createPackDto.packquantity,
+        detalle: `{"tipo": "CREAR PACK", "PACK": "${createPackDto.producto}"}`,
+      });
+      await this.movimientosRepository.save(movimiento);
       return { message: 'El pack se creó correctamente', success: true };
     } catch (error) {
       this.logger.error(error);
@@ -229,7 +243,7 @@ export class PacksService {
     }
   }
 
-  async findAll(): Promise<any[]> {
+  async findAll(): Promise<packs[]> {
     const result = await this.packsRepository
       .createQueryBuilder('pack')
       .leftJoinAndSelect('pack.infoPack', 'producto')
@@ -248,8 +262,150 @@ export class PacksService {
     return result;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} pack`;
+  async findOne(id: number, idlocal: number) {
+    const [result] = await Promise.all([
+      this.packsRepository
+        .createQueryBuilder('pack')
+        .innerJoinAndSelect('pack.productos', 'productospack')
+        .innerJoinAndSelect('pack.infoPack', 'infoPack')
+        .innerJoinAndSelect('infoPack.infoProductoLocal', 'infoPackLocal')
+        .innerJoinAndSelect('productospack.producto', 'productos')
+        .innerJoinAndSelect('productos.infoProductoLocal', 'infoProductoLocal')
+        .where('pack.idpack = :idpack', { idpack: id })
+        .andWhere('infoProductoLocal.idlocal = :idlocal', { idlocal: idlocal }),
+    ]);
+
+    const query = result.getQuery();
+    console.log(query);
+
+    const newResult = await result.getOne();
+
+    if (!newResult) {
+      throw new NotFoundException(`Pack with id ${id} not found`);
+    }
+    return newResult;
+  }
+
+  async unpack(idpack: number, idlocal: number) {
+    try {
+      // Obtener el idproducto del pack a desarmar
+      const { idproducto } = await this.packsRepository
+        .createQueryBuilder('pack')
+        .select(['pack.idpack', 'pack.idproducto'])
+        .where('pack.idpack = :idpack', { idpack })
+        .getOne();
+      /*// Cambiar el estado del idproducto a inactivo
+      await this.productosRepository
+        .createQueryBuilder()
+        .update(productos)
+        .set({
+          idestado: 4,
+        })
+        .where('idproducto = :idproducto', { idproducto: idproducto })
+        .execute();*/
+
+      //Dejar stock en 0 del pack
+      const { idproductolocal } = await this.productosLocalRepository
+        .createQueryBuilder('productoslocal')
+        .select(['productoslocal.idproductolocal'])
+        .where('productoslocal.idproducto = :idproducto', {
+          idproducto: idproducto,
+        })
+        .andWhere('productoslocal.idlocal = :idlocal', {
+          idlocal: idlocal,
+        })
+        .getOne();
+
+      const { stock } = await this.stockProductosTiendaRepository
+        .createQueryBuilder('stockproductostienda')
+        .where('stockproductostienda.idproductolocal = :idproductolocal', {
+          idproductolocal,
+        })
+        .getOne();
+
+      await this.stockProductosTiendaRepository // TODO NO NECESITA EL AWAIT
+        .createQueryBuilder()
+        .update(stockproductostienda)
+        .set({
+          stock: 0,
+          stock_unidades: 0,
+          stock_presentacion: 0,
+        })
+        .where('idproductolocal = :idproductolocal', { idproductolocal })
+        .execute();
+
+      // DEVOLUCIÓN DE PRODUCTOS
+      const productsInPack = await this.productosPackRepository
+        .createQueryBuilder('productospack')
+        .select(['productospack.idproducto', 'productospack.productquantity'])
+        .where('productospack.idpack = :idpack', { idpack })
+        .getMany();
+
+      console.log(productsInPack);
+
+      for (let i = 0; i < productsInPack.length; i++) {
+        const producto = productsInPack[i];
+        const productoPackInfo = await this.productosLocalRepository
+          .createQueryBuilder('productolocal')
+          .where('productolocal.idproducto = :idproducto', {
+            idproducto: producto.idproducto,
+          })
+          .andWhere('productolocal.idlocal = :idlocal', { idlocal })
+          .getOne();
+        console.log(productoPackInfo);
+
+        await this.stockProductosTiendaRepository
+          .createQueryBuilder()
+          .update(stockproductostienda)
+          .set({
+            stock: () => `stock + :stockQuantity`,
+            stock_unidades: () => `stock_unidades + :stockQuantity`,
+            stock_presentacion: () => `stock_presentacion + :stockQuantity`,
+          })
+          .where('idproductolocal = :idproductolocal', {
+            idproductolocal: productoPackInfo.idproductolocal,
+          })
+          .setParameter('stockQuantity', stock * producto.productquantity)
+          .execute();
+        this.logger.log(`PRODUCTO CON ID ${producto.idproducto} LISTO `);
+
+        const updateProductoPackInfo = await this.stockProductosTiendaRepository
+          .createQueryBuilder('stockproductostienda')
+          .where('stockproductostienda.idproductolocal = :idproductolocal', {
+            idproducto: producto.idproducto,
+          })
+          .where('idproductolocal = :idproductolocal', {
+            idproductolocal: productoPackInfo.idproductolocal,
+          })
+          .getOne();
+        console.log(productoPackInfo);
+
+        // AGREGAR MOVIMIENTO
+        await this.movimientosRepository
+          .createQueryBuilder()
+          .insert()
+          .into(movimientos)
+          .values([
+            {
+              idtipomovimiento: 17,
+              idstockproductotienda: productoPackInfo.idproductolocal,
+              salida: null,
+              entrada: stock * producto.productquantity,
+              idusuario: 1,
+              stockfinal:
+                stock * producto.productquantity + updateProductoPackInfo.stock,
+              detalle: `{"tipo": "PACK", "PACK": "NOMBRE_PACK"}`,
+            },
+          ])
+          .execute();
+        this.logger.log(
+          `PRODUCTO CON ID ${producto.idproducto} AGREGADO A MOVIMIENTOS `,
+        );
+      }
+      console.log(stock);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   update(id: number, updatePackDto: UpdatePackDto) {

@@ -16,7 +16,7 @@ export class PacksController {
   constructor(private readonly packsService: PacksService) {}
 
   @Post()
-  create(@Body() createPackDto: any) {
+  create(@Body() createPackDto: CreatePackDto) {
     return this.packsService.create(createPackDto);
   }
 
@@ -25,9 +25,14 @@ export class PacksController {
     return this.packsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.packsService.findOne(+id);
+  @Get(':id/:idlocal')
+  findOne(@Param('id') id: string, @Param('idlocal') idlocal: string) {
+    return this.packsService.findOne(+id, +idlocal);
+  }
+
+  @Get('unpack/:id/:idlocal')
+  unpack(@Param('id') id: number, @Param('idlocal') idlocal: number) {
+    return this.packsService.unpack(id, idlocal);
   }
 
   @Patch(':id')
