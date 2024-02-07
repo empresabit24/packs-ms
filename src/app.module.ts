@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
 
 import { PacksModule } from './packs/packs.module';
 
@@ -12,7 +13,15 @@ import { CreateTables1707241534318 } from './migrations/1707241534318-CreateTabl
 
 @Module({
   imports: [
-    ConfigModule.forRoot(), // Carga y accede a la configuración de la aplicación desde variables de entorno.
+    ConfigModule.forRoot({
+      // Carga y accede a la configuración de la aplicación desde variables de entorno.
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    JwtModule.register({
+      global: true,
+      signOptions: { expiresIn: '60s' },
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
