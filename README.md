@@ -15,7 +15,7 @@ Esta API contiene todos los endpoints referentes a Packs.
 ## Requisitos:
 
 - Node v20.11.0
-- Sequelize (CLI - v6.6.1, ORM - v6.32.1)
+- TypeORM v0.3.19
 - Nestjs v10.2.1
 - Git (cualquier versión)
 - Postman (cualquier versión)
@@ -31,15 +31,15 @@ git clone <URL_PROJECT>
 2. Para instalar todas las dependencias, posiciónate en la raíz del proyecto y ejecuta:
    ```npm install```
 
-3. Agregar el archivo ```.env.local``` en la raíz el proyecto.
+3. Agregar el archivo ```.env``` en la raíz el proyecto.
 
 4. Poner en marcha el servidor del proyecto con el comando:
    ```npm run start:dev```
 
 ## Visualizar documentación en SWAGGER.
 
-En el navegador colocar la dirección sobre la que está levantando el proyecto, en este caso localhost:3000 y añadir “/api”, quedando así: **localhost:3000/api**. Con ello se podrá visualizar todos los endpoints realizados con su respectiva documentación.
+En el navegador colocar la dirección sobre la que está levantando el proyecto, en este caso localhost:3000 y añadir “/api”, quedando así: **localhost:3500/api**. Con ello se podrá visualizar todos los endpoints realizados con su respectiva documentación.
 
 ## Visualizar en POSTMAN.
 
-En el cliente postman, podrás ejecutar las pruebas respectivas a la API, bajo sus diferentes endpoints que contiene. En este caso procurar usar localhost:3000 y lo que sigue del resto de la ruta, ya no se debería adicionar “/api”. Ejemplo: **localhost:3000/packs**. 
+En el cliente postman, podrás ejecutar las pruebas respectivas a la API, bajo sus diferentes endpoints que contiene. En este caso procurar usar localhost:3500 y lo que sigue del resto de la ruta, ya no se debería adicionar “/api”. Ejemplo: **localhost:3500/packs**. 
