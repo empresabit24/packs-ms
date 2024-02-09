@@ -5,11 +5,8 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { PacksModule } from './packs/packs.module';
 
-import * as entities from './infraestructure/microservice/entities';
-
-import { packs } from './packs/entities/pack.entity';
-import { productospack } from './packs/entities/productospack.entity';
-import { CreateTables1707241534318 } from './migrations/1707241534318-CreateTables';
+import { REQUEST } from '@nestjs/core';
+import { createTypeOrmOptions } from './typeorm.config';
 
 @Module({
   imports: [
@@ -22,26 +19,9 @@ import { CreateTables1707241534318 } from './migrations/1707241534318-CreateTabl
       global: true,
       signOptions: { expiresIn: '60s' },
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      database: process.env.DB_DATABASE,
-      username: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      entities: [
-        entities.parametros,
-        entities.productos,
-        entities.productoslocal,
-        entities.stockproductostienda,
-        entities.preciostipocliente,
-        entities.movimientos,
-        entities.marcas,
-        productospack,
-        packs,
-      ],
-      schema: 'sch_main',
-      migrations: [CreateTables1707241534318],
-      migrationsRun: true,
+    TypeOrmModule.forRootAsync({
+      useFactory: createTypeOrmOptions,
+      inject: [REQUEST],
     }),
     PacksModule,
   ],
