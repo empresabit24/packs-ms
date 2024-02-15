@@ -8,6 +8,7 @@ import {
 import { marcas } from './marcas.entity';
 import { productoslocal } from './productoslocal.entity';
 import { packs } from '../../../packs/entities/pack.entity';
+import { stockproductostienda } from './stockproductostienda.entity';
 @Entity({
   name: 'productos',
 })

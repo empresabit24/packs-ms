@@ -271,6 +271,19 @@ export class PacksService {
         .innerJoinAndSelect('infoPack.infoProductoLocal', 'infoPackLocal')
         .innerJoinAndSelect('productospack.producto', 'productos')
         .innerJoinAndSelect('productos.infoProductoLocal', 'infoProductoLocal')
+        .innerJoinAndSelect(
+          'infoProductoLocal.stockproductolocal',
+          'stockproductolocal',
+        )
+        .select([
+          'pack',
+          'productospack',
+          'infoPack',
+          'infoPackLocal',
+          'productos',
+          'infoProductoLocal',
+          'stockproductolocal.stock', // Selecciona solo el campo 'stock'
+        ])
         .where('pack.idpack = :idpack', { idpack: id })
         .andWhere('infoProductoLocal.idlocal = :idlocal', { idlocal: idlocal }),
     ]);
