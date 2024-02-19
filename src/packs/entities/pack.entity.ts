@@ -26,7 +26,7 @@ export class packs {
   @CreateDateColumn()
   creationdate: Date;
 
-  @OneToOne(() => productos, (producto) => producto.productopack)
+  @OneToOne(() => productos)
   @JoinColumn({ name: 'idproducto' })
   infoPack: productos;
 

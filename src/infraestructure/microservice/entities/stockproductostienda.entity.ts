@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { productoslocal } from './productoslocal.entity';
 
 @Entity({
   name: 'stockproductostienda',
@@ -21,4 +28,11 @@ export class stockproductostienda {
 
   @Column('int', { default: 0 })
   stock_presentacion: number;
+
+  @ManyToOne(
+    () => productoslocal,
+    (productolocal) => productolocal.stockPacksLocal,
+  )
+  @JoinColumn({ name: 'idproductolocal' })
+  stockpacks: productoslocal;
 }

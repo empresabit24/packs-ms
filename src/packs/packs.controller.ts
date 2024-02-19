@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { PacksService } from './packs.service';
 import { CreatePackDto } from './dto/create-pack.dto';
 import { AuthGuard } from '../infraestructure/auth/auth.guard';
@@ -25,9 +18,9 @@ export class PacksController {
     return this.packsService.create(createPackDto);
   }
   @UseGuards(AuthGuard)
-  @Get()
-  findAll() {
-    return this.packsService.findAll();
+  @Get(':idlocal')
+  findAll(@Param('idlocal') idlocal: string) {
+    return this.packsService.findAll(+idlocal);
   }
   @UseGuards(AuthGuard)
   @Get(':id/:idlocal')

@@ -10,7 +10,6 @@ import { packs } from './pack.entity';
 import { productos } from '../../infraestructure/microservice/entities';
 
 @Entity({
-  schema: 'sch_main',
   name: 'productospack',
 })
 export class productospack {

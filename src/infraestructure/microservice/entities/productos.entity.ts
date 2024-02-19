@@ -7,8 +7,6 @@ import {
 } from 'typeorm';
 import { marcas } from './marcas.entity';
 import { productoslocal } from './productoslocal.entity';
-import { packs } from '../../../packs/entities/pack.entity';
-import { stockproductostienda } from './stockproductostienda.entity';
 @Entity({
   name: 'productos',
 })
@@ -76,12 +74,9 @@ export class productos {
   @Column('text')
   barcode: string;
 
-  @OneToOne(() => marcas, (marca) => marca.idmarca)
+  @OneToOne(() => marcas)
   @JoinColumn({ name: 'idmarca' })
   marca: marcas;
-
-  @OneToOne(() => packs, (pack) => pack.infoPack)
-  productopack: packs;
 
   @OneToOne(() => productoslocal, (productolocal) => productolocal.producto)
   infoProductoLocal: productoslocal;
