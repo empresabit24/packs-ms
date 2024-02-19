@@ -1,26 +1,19 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import {BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException,} from '@nestjs/common';
+import {InjectRepository} from '@nestjs/typeorm';
+import {In, Repository} from 'typeorm';
 
-import { CreatePackDto } from './dto/create-pack.dto';
+import {CreatePackDto} from './dto/create-pack.dto';
 
 import {
-  productos,
+  movimientos,
   parametros,
+  preciostipocliente,
+  productos,
   productoslocal,
   stockproductostienda,
-  preciostipocliente,
-  movimientos,
 } from '../infraestructure/microservice/entities';
-import { packs } from './entities/pack.entity';
-import { productospack } from './entities/productospack.entity';
+import {packs} from './entities/pack.entity';
+import {productospack} from './entities/productospack.entity';
 
 @Injectable()
 export class PacksService {
@@ -254,28 +247,27 @@ export class PacksService {
   }
 
   async findAll(idlocal: number): Promise<packs[]> {
-    const result = await this.packsRepository
-      .createQueryBuilder('pack')
-      .innerJoinAndSelect('pack.infoPack', 'producto')
-      .innerJoinAndSelect('producto.marca', 'marca')
-      .innerJoinAndSelect('producto.infoProductoLocal', 'infoPackLocal')
-      .leftJoinAndSelect('infoPackLocal.stockPacksLocal', 'stockpack')
-      .select([
-        'pack.idpack',
-        'pack.idproducto',
-        'pack.creationdate',
-        'producto.producto',
-        'producto.sku',
-        'producto.idestado',
-        'marca',
-        'infoPackLocal.idproductolocal',
-        'infoPackLocal.idlocal',
-        'stockpack.stock',
-      ])
-      .where('infoPackLocal.idlocal = :idlocal', { idlocal: idlocal })
-      .getMany();
 
-    return result;
+    return await this.packsRepository
+        .createQueryBuilder('pack')
+        .innerJoinAndSelect('pack.infoPack', 'producto')
+        .innerJoinAndSelect('producto.marca', 'marca')
+        .innerJoinAndSelect('producto.infoProductoLocal', 'infoPackLocal')
+        .leftJoinAndSelect('infoPackLocal.stockPacksLocal', 'stockpack')
+        .select([
+          'pack.idpack',
+          'pack.idproducto',
+          'pack.creationdate',
+          'producto.producto',
+          'producto.sku',
+          'producto.idestado',
+          'marca',
+          'infoPackLocal.idproductolocal',
+          'infoPackLocal.idlocal',
+          'stockpack.stock',
+        ])
+        .where('infoPackLocal.idlocal = :idlocal', {idlocal: idlocal})
+        .getMany();
   }
 
   async findOne(id: number, idlocal: number) {
@@ -524,7 +516,6 @@ export class PacksService {
             productoLocal.porcentajeganancia = productData.porcentajeganancia;
           }
           await this.productosLocalRepository.save(productoLocal);
-          //TODO: AQUI INSERTAR CODIGO PARA CREAR PRODUCTOLOCAL EN TABLA STOCK_PRODUCTOS_TIENDA Y ARRIBA HAY OTRO TODO(UPDATE)
           const stockPack = this.stockProductosTiendaRepository.create({
             idproductolocal: productoLocal.idproductolocal,
             idtienda: productData.idlocal,
