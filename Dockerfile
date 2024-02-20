@@ -1,25 +1,23 @@
-# Runtime (production) layer
+# Utilizar node:alpine como imagen base
 FROM node:20-alpine as production
 
-# Optional NPM automation (auth) token build argument
-# ARG NPM_TOKEN
-
-# Optionally authenticate NPM registry
-# RUN npm set //registry.npmjs.org/:_authToken ${NPM_TOKEN}
-
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copy dependencies files
+# Copiar archivos de dependencias
 COPY package*.json ./
 
-# Install runtime dependecies (without dev/test dependecies)
-RUN npm i --omit=dev
+# Instalar dependencias de producción
+RUN npm install --only=production
 
-# Copy production build
-COPY --from=development /app/dist/ ./dist/
+# Copiar el código fuente
+COPY . .
 
-# Expose application port
+# Crear el build de producción
+RUN npm run build
+
+# Exponer el puerto de la aplicación
 EXPOSE 3000
 
-# Start application
+# Ejecutar la aplicación
 CMD [ "node", "dist/main.js" ]
