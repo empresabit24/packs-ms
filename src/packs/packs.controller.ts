@@ -40,6 +40,7 @@ export class PacksController {
     return this.unpackService.unpack(id, idlocal);
   }
 
+  @UseGuards(AuthGuard)
   @Post('add-stock/:idproducto/:idlocal/:stockToAdd')
   addStock(
     @Param('idproducto') idproducto: number,
