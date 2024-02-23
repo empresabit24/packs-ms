@@ -44,7 +44,7 @@ export class UnpackService {
         .getOne();
 
       // OBTENEMOS EL NOMBRE DEL PACK:
-      const packName = this.getNameProducto(idproducto);
+      const packName = await this.getNameProducto(idproducto);
 
       /*// Cambiar el estado del idproducto a inactivo
             await this.productosRepository

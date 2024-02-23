@@ -13,6 +13,7 @@ import {
   productoslocal,
   stockproductostienda,
 } from '../../infraestructure/microservice/entities';
+import { AddStockDto } from '../dto/add-stock.dto';
 
 @Injectable()
 export class AddStockService {
@@ -35,15 +36,16 @@ export class AddStockService {
     private stockProductosTiendaRepository: Repository<stockproductostienda>,
   ) {}
 
-  async addStock(idProducto: number, idLocal: number, stockToAdd: number) {
+  async addStock(addStockDto: AddStockDto) {
     //PRIMERO OBTENEMOS EL NOMBRE DEL PACK
-    const { producto } = await this.productosRepository
+    const infoPack = await this.productosRepository
       .createQueryBuilder('productos')
       .select(['productos.producto'])
       .where('productos.idproducto = :idproducto', {
-        idproducto: idProducto,
+        idproducto: addStockDto.idProducto,
       })
       .getOne();
+    const packName = infoPack.producto;
 
     try {
       // AHORA NOS ASEGURAMOS QUE idproducto CORRESPONDA A LA TABLA idproductolocal
@@ -51,10 +53,10 @@ export class AddStockService {
         .createQueryBuilder('productoslocal')
         .select(['productoslocal'])
         .where('productoslocal.idproducto = :idproducto', {
-          idproducto: idProducto,
+          idproducto: addStockDto.idProducto,
         })
         .andWhere('productoslocal.idlocal = :idlocal', {
-          idlocal: idLocal,
+          idlocal: addStockDto.idLocal,
         })
         .getOne();
 
@@ -63,7 +65,7 @@ export class AddStockService {
         .createQueryBuilder('pack')
         .select(['pack'])
         .where('pack.idproducto = :idproducto', {
-          idproducto: idProducto,
+          idproducto: addStockDto.idProducto,
         })
         .getOne();
 
@@ -110,7 +112,9 @@ export class AddStockService {
           .where('productoslocal.idproducto = :idproducto', {
             idproducto: productId,
           })
-          .andWhere('productoslocal.idlocal = :idlocal', { idlocal: idLocal })
+          .andWhere('productoslocal.idlocal = :idlocal', {
+            idlocal: addStockDto.idLocal,
+          })
           .getOne();
 
         if (!infoProducto)
@@ -121,9 +125,9 @@ export class AddStockService {
         // DETERMINAR SI LOS PRODUCTOS TIENE STOCK SUFICIENTE PARA AUMENTAR EL STOCK DEL PACK
         const stockProducto = Number(infoProducto.stockPacksLocal[0].stock);
 
-        if (stockProducto < stockToAdd * productQuantityInPack) {
+        if (stockProducto < addStockDto.stockToAdd * productQuantityInPack) {
           throw new BadRequestException(
-            `El producto "${productName}" tiene ${stockProducto} unidades, esto no es suficiente para armar ${stockToAdd} packs.`,
+            `El producto "${productName}" tiene ${stockProducto} unidades, esto no es suficiente para armar ${addStockDto.stockToAdd} packs.`,
           );
         }
       }
@@ -138,7 +142,7 @@ export class AddStockService {
             idproducto: producto.idproducto,
           })
           .andWhere('productoslocal.idlocal = :idlocal', {
-            idlocal: idLocal,
+            idlocal: addStockDto.idLocal,
           })
           .getOne();
 
@@ -151,12 +155,14 @@ export class AddStockService {
           });
 
         stockProductoToDiscount.stock =
-          Number(stockProductoToDiscount.stock) + Number(stockToAdd);
+          Number(stockProductoToDiscount.stock) +
+          Number(addStockDto.stockToAdd);
         stockProductoToDiscount.stock_unidades =
-          Number(stockProductoToDiscount.stock_unidades) + Number(stockToAdd);
+          Number(stockProductoToDiscount.stock_unidades) +
+          Number(addStockDto.stockToAdd);
         stockProductoToDiscount.stock_presentacion =
           Number(stockProductoToDiscount.stock_presentacion) +
-          Number(stockToAdd);
+          Number(addStockDto.stockToAdd);
 
         await this.stockProductosTiendaRepository.save(stockProductoToDiscount);
 
@@ -164,11 +170,11 @@ export class AddStockService {
         const movimiento = this.movimientosRepository.create({
           idtipomovimiento: 16,
           idstockproductotienda: stockProductoToDiscount.idstockproductotienda,
-          salida: stockToAdd * producto.productquantity,
+          salida: addStockDto.stockToAdd * producto.productquantity,
           entrada: null,
           idusuario: 1,
           stockfinal: stockProductoToDiscount.stock,
-          detalle: `{"tipo": "AUMENTAR STOCK A PACK", "PACK": "${producto}"}`,
+          detalle: `{"tipo": "AUMENTAR STOCK A PACK", "PACK": "${packName}"}`,
         });
 
         await this.movimientosRepository.save(movimiento);
@@ -181,11 +187,13 @@ export class AddStockService {
         },
       });
 
-      packToUpdate.stock = Number(packToUpdate.stock) + Number(stockToAdd);
+      packToUpdate.stock =
+        Number(packToUpdate.stock) + Number(addStockDto.stockToAdd);
       packToUpdate.stock_unidades =
-        Number(packToUpdate.stock_unidades) + Number(stockToAdd);
+        Number(packToUpdate.stock_unidades) + Number(addStockDto.stockToAdd);
       packToUpdate.stock_presentacion =
-        Number(packToUpdate.stock_presentacion) + Number(stockToAdd);
+        Number(packToUpdate.stock_presentacion) +
+        Number(addStockDto.stockToAdd);
 
       try {
         await this.stockProductosTiendaRepository.save(packToUpdate);
@@ -200,10 +208,10 @@ export class AddStockService {
         idtipomovimiento: 16,
         idstockproductotienda: packToUpdate.idstockproductotienda,
         salida: null,
-        entrada: stockToAdd,
+        entrada: addStockDto.stockToAdd,
         idusuario: 1,
         stockfinal: packToUpdate.stock,
-        detalle: `{"tipo": "AUMENTAR STOCK A PACK", "PACK": "${producto}"}`,
+        detalle: `{"tipo": "AUMENTAR STOCK A PACK", "PACK": "${packName}"}`,
       });
 
       await this.movimientosRepository.save(movimiento);
@@ -211,7 +219,7 @@ export class AddStockService {
       // MENSAJE EXITOSO
       return {
         status: 'success',
-        message: `Se agregaron ${stockToAdd} unidades al PACK '${producto}'`,
+        message: `Se agregaron ${addStockDto.stockToAdd} unidades al PACK '${packName}'`,
       };
     } catch (error) {
       this.logger.error('Error al agregar stock:', error.message);
