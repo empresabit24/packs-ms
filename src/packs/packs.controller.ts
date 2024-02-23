@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { PacksService } from './packs.service';
+import { PacksService } from './usecases/packs.service';
 import { CreatePackDto } from './dto/create-pack.dto';
 import { AuthGuard } from '../infraestructure/auth/auth.guard';
 import { ApiHeader } from '@nestjs/swagger';
+import { AddStockService } from './usecases/add-stock.service';
+import { UnpackService } from './usecases/unpack.service';
 
 @ApiHeader({
   name: 'Authorization',
@@ -10,7 +12,11 @@ import { ApiHeader } from '@nestjs/swagger';
 })
 @Controller('packs')
 export class PacksController {
-  constructor(private readonly packsService: PacksService) {}
+  constructor(
+    private readonly packsService: PacksService,
+    private readonly unpackService: UnpackService,
+    private readonly addStockService: AddStockService,
+  ) {}
 
   @UseGuards(AuthGuard)
   @Post()
@@ -31,6 +37,15 @@ export class PacksController {
   @UseGuards(AuthGuard)
   @Get('unpack/:id/:idlocal')
   unpack(@Param('id') id: number, @Param('idlocal') idlocal: number) {
-    return this.packsService.unpack(id, idlocal);
+    return this.unpackService.unpack(id, idlocal);
+  }
+
+  @Post('add-stock/:idproducto/:idlocal/:stockToAdd')
+  addStock(
+    @Param('idproducto') idproducto: number,
+    @Param('idlocal') idlocal: number,
+    @Param('stockToAdd') stockToAdd: number,
+  ) {
+    return this.addStockService.addStock(idproducto, idlocal, stockToAdd);
   }
 }

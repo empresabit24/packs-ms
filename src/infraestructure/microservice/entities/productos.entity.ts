@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { marcas } from './marcas.entity';
 import { productoslocal } from './productoslocal.entity';
+import { packs } from '../../../packs/entities/pack.entity';
 @Entity({
   name: 'productos',
 })
@@ -80,4 +81,8 @@ export class productos {
 
   @OneToOne(() => productoslocal, (productolocal) => productolocal.producto)
   infoProductoLocal: productoslocal;
+
+  @OneToOne(() => packs)
+  @JoinColumn({ name: 'idproducto' })
+  pack: packs;
 }

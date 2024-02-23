@@ -1,8 +1,15 @@
-import {BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException,} from '@nestjs/common';
-import {InjectRepository} from '@nestjs/typeorm';
-import {In, Repository} from 'typeorm';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 
-import {CreatePackDto} from './dto/create-pack.dto';
+import { CreatePackDto } from '../dto/create-pack.dto';
 
 import {
   movimientos,
@@ -11,9 +18,9 @@ import {
   productos,
   productoslocal,
   stockproductostienda,
-} from '../infraestructure/microservice/entities';
-import {packs} from './entities/pack.entity';
-import {productospack} from './entities/productospack.entity';
+} from '../../infraestructure/microservice/entities';
+import { packs } from '../entities/pack.entity';
+import { productospack } from '../entities/productospack.entity';
 
 @Injectable()
 export class PacksService {
@@ -94,7 +101,7 @@ export class PacksService {
 
         if (requiredStock > Number(stockProduct.stock)) {
           const errorMessage = `Hay ${stockProduct.stock} unidades de ${infoProduct.producto}. Para crear el pack se necesitan ${requiredStock}.`;
-          throw new BadRequestException({ message: errorMessage });
+          throw new BadRequestException(errorMessage);
         }
 
         this.logger.log(`SE VALIDÓ EL STOCK DE: ${infoProduct.producto}`);
@@ -247,27 +254,26 @@ export class PacksService {
   }
 
   async findAll(idlocal: number): Promise<packs[]> {
-
     return await this.packsRepository
-        .createQueryBuilder('pack')
-        .innerJoinAndSelect('pack.infoPack', 'producto')
-        .innerJoinAndSelect('producto.marca', 'marca')
-        .innerJoinAndSelect('producto.infoProductoLocal', 'infoPackLocal')
-        .leftJoinAndSelect('infoPackLocal.stockPacksLocal', 'stockpack')
-        .select([
-          'pack.idpack',
-          'pack.idproducto',
-          'pack.creationdate',
-          'producto.producto',
-          'producto.sku',
-          'producto.idestado',
-          'marca',
-          'infoPackLocal.idproductolocal',
-          'infoPackLocal.idlocal',
-          'stockpack.stock',
-        ])
-        .where('infoPackLocal.idlocal = :idlocal', {idlocal: idlocal})
-        .getMany();
+      .createQueryBuilder('pack')
+      .innerJoinAndSelect('pack.infoPack', 'producto')
+      .innerJoinAndSelect('producto.marca', 'marca')
+      .innerJoinAndSelect('producto.infoProductoLocal', 'infoPackLocal')
+      .leftJoinAndSelect('infoPackLocal.stockPacksLocal', 'stockpack')
+      .select([
+        'pack.idpack',
+        'pack.idproducto',
+        'pack.creationdate',
+        'producto.producto',
+        'producto.sku',
+        'producto.idestado',
+        'marca',
+        'infoPackLocal.idproductolocal',
+        'infoPackLocal.idlocal',
+        'stockpack.stock',
+      ])
+      .where('infoPackLocal.idlocal = :idlocal', { idlocal: idlocal })
+      .getMany();
   }
 
   async findOne(id: number, idlocal: number) {
@@ -306,157 +312,6 @@ export class PacksService {
       throw new NotFoundException(`Pack with id ${id} not found`);
     }
     return newResult;
-  }
-
-  async unpack(idpack: number, idlocal: number) {
-    try {
-      // Obtener el idproducto del pack a desarmar
-      const { idproducto } = await this.packsRepository
-        .createQueryBuilder('pack')
-        .select(['pack.idpack', 'pack.idproducto'])
-        .where('pack.idpack = :idpack', { idpack })
-        .getOne();
-      /*// Cambiar el estado del idproducto a inactivo
-      await this.productosRepository
-        .createQueryBuilder()
-        .update(productos)
-        .set({
-          idestado: 4,
-        })
-        .where('idproducto = :idproducto', { idproducto: idproducto })
-        .execute();*/
-
-      //Dejar stock en 0 del pack
-      const { idproductolocal } = await this.productosLocalRepository
-        .createQueryBuilder('productoslocal')
-        .select(['productoslocal.idproductolocal'])
-        .where('productoslocal.idproducto = :idproducto', {
-          idproducto: idproducto,
-        })
-        .andWhere('productoslocal.idlocal = :idlocal', {
-          idlocal: idlocal,
-        })
-        .getOne();
-
-      const { stock, idstockproductotienda } =
-        await this.stockProductosTiendaRepository
-          .createQueryBuilder('stockproductostienda')
-          .where('stockproductostienda.idproductolocal = :idproductolocal', {
-            idproductolocal,
-          })
-          .getOne();
-
-      await this.stockProductosTiendaRepository // TODO NO NECESITA EL AWAIT
-        .createQueryBuilder()
-        .update(stockproductostienda)
-        .set({
-          stock: 0,
-          stock_unidades: 0,
-          stock_presentacion: 0,
-        })
-        .where('idproductolocal = :idproductolocal', { idproductolocal })
-        .execute();
-
-      // AGREGAR A MOVIMIENTO DEL PACK A 0
-      await this.movimientosRepository
-        .createQueryBuilder()
-        .insert()
-        .into(movimientos)
-        .values([
-          {
-            idtipomovimiento: 17,
-            idstockproductotienda: idstockproductotienda,
-            salida: stock,
-            entrada: null,
-            idusuario: 1,
-            stockfinal: 0,
-            detalle: `{"tipo": "PACK", "PACK": "NOMBRE_PACK"}`,
-          },
-        ])
-        .execute();
-
-      // DEVOLUCIÓN DE PRODUCTOS
-      const productsInPack = await this.productosPackRepository
-        .createQueryBuilder('productospack')
-        .select(['productospack.idproducto', 'productospack.productquantity'])
-        .where('productospack.idpack = :idpack', { idpack })
-        .getMany();
-
-      console.log(productsInPack);
-
-      for (let i = 0; i < productsInPack.length; i++) {
-        const producto = productsInPack[i];
-        const productoPackInfo = await this.productosLocalRepository
-          .createQueryBuilder('productolocal')
-          .where('productolocal.idproducto = :idproducto', {
-            idproducto: producto.idproducto,
-          })
-          .andWhere('productolocal.idlocal = :idlocal', { idlocal })
-          .getOne();
-        console.log(productoPackInfo);
-
-        await this.stockProductosTiendaRepository
-          .createQueryBuilder()
-          .update(stockproductostienda)
-          .set({
-            stock: () => `stock + :stockQuantity`,
-            stock_unidades: () => `stock_unidades + :stockQuantity`,
-            stock_presentacion: () => `stock_presentacion + :stockQuantity`,
-          })
-          .where('idproductolocal = :idproductolocal', {
-            idproductolocal: productoPackInfo.idproductolocal,
-          })
-          .setParameter('stockQuantity', stock * producto.productquantity)
-          .execute();
-        this.logger.log(`PRODUCTO CON ID ${producto.idproducto} LISTO `);
-
-        const updateProductoPackInfo = await this.stockProductosTiendaRepository
-          .createQueryBuilder('stockproductostienda')
-          .where('stockproductostienda.idproductolocal = :idproductolocal', {
-            idproducto: producto.idproducto,
-          })
-          .where('idproductolocal = :idproductolocal', {
-            idproductolocal: productoPackInfo.idproductolocal,
-          })
-          .getOne();
-        console.log(updateProductoPackInfo);
-
-        // AGREGAR MOVIMIENTO
-        try {
-          this.logger.log('AGREGANDO MOVIMIENTOS');
-          console.log(producto);
-          const sumaStockFinal =
-            Number(stock * producto.productquantity) +
-            Number(updateProductoPackInfo.stock);
-
-          await this.movimientosRepository
-            .createQueryBuilder()
-            .insert()
-            .into(movimientos)
-            .values([
-              {
-                idtipomovimiento: 17,
-                idstockproductotienda:
-                  updateProductoPackInfo.idstockproductotienda,
-                salida: null,
-                entrada: stock * producto.productquantity,
-                idusuario: 1,
-                stockfinal: sumaStockFinal,
-                detalle: `{"tipo": "PACK", "PACK": "NOMBRE_PACK"}`,
-              },
-            ])
-            .execute();
-          this.logger.log(
-            `PRODUCTO CON ID ${producto.idproducto} AGREGADO A MOVIMIENTOS `,
-          );
-        } catch (e) {
-          console.log(e);
-        }
-      }
-      console.log(stock);
-    } catch (error) {
-      console.log(error);
-    }
   }
 
   async updateProduct(productData: any, idproducto: number) {
