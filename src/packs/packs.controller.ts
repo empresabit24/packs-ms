@@ -6,6 +6,7 @@ import { ApiHeader } from '@nestjs/swagger';
 import { AddStockService } from './usecases/add-stock.service';
 import { UnpackService } from './usecases/unpack.service';
 import { AddStockDto } from './dto/add-stock.dto';
+import { UnpackDto } from './dto/unpack.dto';
 
 @ApiHeader({
   name: 'Authorization',
@@ -36,9 +37,9 @@ export class PacksController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('unpack/:id/:idlocal')
-  unpack(@Param('id') id: number, @Param('idlocal') idlocal: number) {
-    return this.unpackService.unpack(id, idlocal);
+  @Post('unpack')
+  unpack(@Body() unpackDto: UnpackDto) {
+    return this.unpackService.unpack(unpackDto);
   }
 
   @UseGuards(AuthGuard)

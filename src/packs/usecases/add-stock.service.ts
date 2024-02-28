@@ -134,6 +134,7 @@ export class AddStockService {
 
       //TRAS COMPROBAR QUE LOS PRODUCTOS BASE SI TIENEN STOCK SUFICIENTE SE PROCEDE A DESCONTARLO
       for (const producto of productos) {
+        const productQuantityInPack = producto.productquantity;
         // Se obtiene el idproductolocal de la tabla productoslocal
         const productoToDiscount = await this.productosLocalRepository
           .createQueryBuilder('productoslocal')
@@ -155,18 +156,18 @@ export class AddStockService {
           });
 
         stockProductoToDiscount.stock =
-          Number(stockProductoToDiscount.stock) +
-          Number(addStockDto.stockToAdd);
-        stockProductoToDiscount.stock_unidades =
-          Number(stockProductoToDiscount.stock_unidades) +
-          Number(addStockDto.stockToAdd);
-        stockProductoToDiscount.stock_presentacion =
-          Number(stockProductoToDiscount.stock_presentacion) +
-          Number(addStockDto.stockToAdd);
+          Number(stockProductoToDiscount.stock) -
+          Number(addStockDto.stockToAdd) * productQuantityInPack;
+        stockProductoToDiscount.stock_unidades = Number(
+          stockProductoToDiscount.stock,
+        );
+        stockProductoToDiscount.stock_presentacion = Number(
+          stockProductoToDiscount.stock,
+        );
 
         await this.stockProductosTiendaRepository.save(stockProductoToDiscount);
 
-        //   AGREGAR A MOVIMIENTOS LA DISMINUCION DE LOS PRODUCTOS BASE
+        //   AGREGAR A MOVIMIENTOS LA DISMINUCIÓN DE LOS PRODUCTOS BASE
         const movimiento = this.movimientosRepository.create({
           idtipomovimiento: 16,
           idstockproductotienda: stockProductoToDiscount.idstockproductotienda,
@@ -219,7 +220,7 @@ export class AddStockService {
       // MENSAJE EXITOSO
       return {
         status: 'success',
-        message: `Se agregaron ${addStockDto.stockToAdd} unidades al PACK '${packName}'`,
+        message: `Se agregaron ${addStockDto.stockToAdd} unidades al pack '${packName}'`,
       };
     } catch (error) {
       this.logger.error('Error al agregar stock:', error.message);

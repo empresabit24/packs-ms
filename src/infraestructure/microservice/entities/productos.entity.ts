@@ -75,6 +75,9 @@ export class productos {
   @Column('text')
   barcode: string;
 
+  @Column('boolean')
+  ispack: boolean;
+
   @OneToOne(() => marcas)
   @JoinColumn({ name: 'idmarca' })
   marca: marcas;

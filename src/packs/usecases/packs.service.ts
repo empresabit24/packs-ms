@@ -246,7 +246,10 @@ export class PacksService {
         detalle: `{"tipo": "CREAR PACK", "PACK": "${createPackDto.producto}"}`,
       });
       await this.movimientosRepository.save(movimiento);
-      return { message: 'El pack se creó correctamente', success: true };
+      return {
+        message: `El pack '${createPackDto.producto}' [${createPackDto.packquantity} unidades] se creó correctamente.`,
+        success: true,
+      };
     } catch (error) {
       this.logger.error(error);
       throw new HttpException(`${error}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -342,6 +345,7 @@ export class PacksService {
         parentProduct.idunidadmedida = parseInt(unidadDefault.valor);
         parentProduct.cobertura_min = productData.cobertura_min;
         parentProduct.cobertura_max = productData.cobertura_max;
+        parentProduct.ispack = true;
 
         // Guardar el producto padre actualizado en la base de datos
         await this.productosRepository.save(parentProduct);
@@ -355,6 +359,7 @@ export class PacksService {
             cobertura_min: parentProduct.cobertura_min,
             cobertura_max: parentProduct.cobertura_max,
             nombrecomercial: parentProduct.producto,
+            ispack: true,
           },
         );
 

@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   movimientos,
   productos,
@@ -9,10 +14,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { packs } from '../entities/pack.entity';
 import { Repository } from 'typeorm';
 import { productospack } from '../entities/productospack.entity';
+import { UnpackDto } from '../dto/unpack.dto';
 
 @Injectable()
 export class UnpackService {
   private readonly logger = new Logger('UnpackService');
+  idProducto: number;
+  idPack: number;
 
   constructor(
     @InjectRepository(productos)
@@ -34,17 +42,41 @@ export class UnpackService {
     private readonly productosPackRepository: Repository<productospack>,
   ) {}
 
-  async unpack(idpack: number, idlocal: number) {
+  async unpack(unpackDto: UnpackDto) {
     try {
-      // OBTENEMOS EL idproducto DEL PACK A DESARMAR
-      const { idproducto } = await this.packsRepository
-        .createQueryBuilder('pack')
-        .select(['pack.idpack', 'pack.idproducto'])
-        .where('pack.idpack = :idpack', { idpack })
-        .getOne();
+      // VALIDAMOS SI TENEMOS idProducto o idPack EN EL DTO
+      if (unpackDto.idPack) {
+        // Si existe idPack en el DTO, obtenemos idproducto del pack
+        const pack = await this.packsRepository
+          .createQueryBuilder('pack')
+          .select(['pack.idpack', 'pack.idproducto'])
+          .where('pack.idpack = :idpack', { idpack: unpackDto.idPack })
+          .getOne();
+
+        if (!pack) {
+          throw new NotFoundException('Pack no encontrado.');
+        }
+
+        this.idProducto = Number(pack.idproducto);
+      } else if (unpackDto.idProducto) {
+        // Si existe idProducto en el DTO, obtenemos idPack
+        this.idProducto = unpackDto.idProducto;
+        const pack = await this.packsRepository
+          .createQueryBuilder('pack')
+          .select(['pack.idpack', 'pack.idproducto'])
+          .where('pack.idproducto = :idproducto', {
+            idproducto: this.idProducto,
+          })
+          .getOne();
+        this.idPack = Number(pack.idpack);
+      } else {
+        throw new NotFoundException(
+          'Se requiere idPack o idProducto en el payload',
+        );
+      }
 
       // OBTENEMOS EL NOMBRE DEL PACK:
-      const packName = await this.getNameProducto(idproducto);
+      const packName = await this.getNameProducto(this.idProducto);
 
       /*// Cambiar el estado del idproducto a inactivo
             await this.productosRepository
@@ -56,36 +88,40 @@ export class UnpackService {
               .where('idproducto = :idproducto', { idproducto: idproducto })
               .execute();*/
 
-      //DEJAMOS CON STOCK 0 AL PACK A DESARMAR
+      //DISMINUIMOS EL STOCK DEL PACK A DESARMAR
       const { idproductolocal } = await this.productosLocalRepository
         .createQueryBuilder('productoslocal')
         .select(['productoslocal.idproductolocal'])
         .where('productoslocal.idproducto = :idproducto', {
-          idproducto: idproducto,
+          idproducto: this.idProducto,
         })
         .andWhere('productoslocal.idlocal = :idlocal', {
-          idlocal: idlocal,
+          idlocal: unpackDto.idLocal,
         })
         .getOne();
 
-      const { stock, idstockproductotienda } =
-        await this.stockProductosTiendaRepository
-          .createQueryBuilder('stockproductostienda')
-          .where('stockproductostienda.idproductolocal = :idproductolocal', {
-            idproductolocal,
-          })
-          .getOne();
-
-      await this.stockProductosTiendaRepository
-        .createQueryBuilder()
-        .update(stockproductostienda)
-        .set({
-          stock: 0,
-          stock_unidades: 0,
-          stock_presentacion: 0,
+      const packToUpdate = await this.stockProductosTiendaRepository
+        .createQueryBuilder('stockproductostienda')
+        .where('stockproductostienda.idproductolocal = :idproductolocal', {
+          idproductolocal,
         })
-        .where('idproductolocal = :idproductolocal', { idproductolocal })
-        .execute();
+        .getOne();
+
+      // VALIDAR QUE LA CANTIDAD A DESARMAR SEA MENOR O IGUAL AL STOCK DEL PACK
+      if (unpackDto.stockToUnpack > packToUpdate.stock) {
+        throw new BadRequestException(
+          `Se quieren desarmar ${unpackDto.stockToUnpack} unidades de ${packName}
+          , pero solo existen ${packToUpdate.stock} unidades.`,
+        );
+      }
+
+      // ACTUALIZAMOS EL STOCK DEL PACK
+      packToUpdate.stock =
+        Number(packToUpdate.stock) - Number(unpackDto.stockToUnpack);
+      packToUpdate.stock_unidades = Number(packToUpdate.stock);
+      packToUpdate.stock_presentacion = Number(packToUpdate.stock);
+
+      await this.stockProductosTiendaRepository.save(packToUpdate);
 
       // AGREGAR A MOVIMIENTOS EL NUEVO STOCK DEL PACK
       await this.movimientosRepository
@@ -95,12 +131,12 @@ export class UnpackService {
         .values([
           {
             idtipomovimiento: 17,
-            idstockproductotienda: idstockproductotienda,
-            salida: stock,
+            idstockproductotienda: packToUpdate.idstockproductotienda,
+            salida: unpackDto.stockToUnpack,
             entrada: null,
             idusuario: 1,
-            stockfinal: 0,
-            detalle: `{"tipo": "UNPACK", "PACK": "${packName}"}`,
+            stockfinal: packToUpdate.stock,
+            detalle: `{"tipo": "UNPACK", "UNPACK": "${packName}"}`,
           },
         ])
         .execute();
@@ -109,19 +145,20 @@ export class UnpackService {
       const productsInPack = await this.productosPackRepository
         .createQueryBuilder('productospack')
         .select(['productospack.idproducto', 'productospack.productquantity'])
-        .where('productospack.idpack = :idpack', { idpack })
+        .where('productospack.idpack = :idpack', { idpack: this.idPack })
         .getMany();
 
-      console.log(productsInPack);
+      console.log('Esto es productsInPack:', productsInPack);
 
-      for (let i = 0; i < productsInPack.length; i++) {
-        const producto = productsInPack[i];
+      for (const producto of productsInPack) {
         const productoPackInfo = await this.productosLocalRepository
           .createQueryBuilder('productolocal')
           .where('productolocal.idproducto = :idproducto', {
             idproducto: producto.idproducto,
           })
-          .andWhere('productolocal.idlocal = :idlocal', { idlocal })
+          .andWhere('productolocal.idlocal = :idlocal', {
+            idlocal: unpackDto.idLocal,
+          })
           .getOne();
         console.log(productoPackInfo);
 
@@ -136,9 +173,14 @@ export class UnpackService {
           .where('idproductolocal = :idproductolocal', {
             idproductolocal: productoPackInfo.idproductolocal,
           })
-          .setParameter('stockQuantity', stock * producto.productquantity)
+          .setParameter(
+            'stockQuantity',
+            unpackDto.stockToUnpack * producto.productquantity,
+          )
           .execute();
-        this.logger.log(`PRODUCTO CON ID ${producto.idproducto} LISTO `);
+        this.logger.log(
+          `STOCK DE PRODUCTO CON ID ${producto.idproducto} LISTO `,
+        );
 
         const updateProductoPackInfo = await this.stockProductosTiendaRepository
           .createQueryBuilder('stockproductostienda')
@@ -156,7 +198,7 @@ export class UnpackService {
           this.logger.log('AGREGANDO MOVIMIENTOS');
           console.log(producto);
           const sumaStockFinal =
-            Number(stock * producto.productquantity) +
+            Number(unpackDto.stockToUnpack * producto.productquantity) +
             Number(updateProductoPackInfo.stock);
 
           await this.movimientosRepository
@@ -169,10 +211,10 @@ export class UnpackService {
                 idstockproductotienda:
                   updateProductoPackInfo.idstockproductotienda,
                 salida: null,
-                entrada: stock * producto.productquantity,
+                entrada: unpackDto.stockToUnpack * producto.productquantity,
                 idusuario: 1,
                 stockfinal: sumaStockFinal,
-                detalle: `{"tipo": "UNPACK", "PACK": "${packName}"}`,
+                detalle: `{"tipo": "UNPACK", "UNPACK": "${packName}"}`,
               },
             ])
             .execute();
@@ -184,6 +226,12 @@ export class UnpackService {
           throw error;
         }
       }
+
+      // MENSAJE EXITOSO
+      return {
+        status: 'success',
+        message: `Se desarmaron ${unpackDto.stockToUnpack} unidades del pack '${packName}'`,
+      };
     } catch (error) {
       this.logger.error('Error al desarmar el pack:', error.message);
       throw error;
