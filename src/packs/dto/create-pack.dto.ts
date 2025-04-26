@@ -37,7 +37,7 @@ class ProductoDTO {
   @IsNumber()
   @ApiProperty({
     type: Number,
-    minimum: 1,
+    minimum: 0.001,
     description: 'Cantidad del producto en el pack p.e. 2 manzanas',
   })
   productquantity: number;
