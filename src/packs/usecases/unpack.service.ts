@@ -58,6 +58,7 @@ export class UnpackService {
         }
 
         this.idProducto = Number(pack.idproducto);
+        this.idPack = unpackDto.idPack;
       } else if (unpackDto.idProducto) {
         // Si existe idProducto en el DTO, obtenemos idPack
         this.idProducto = unpackDto.idProducto;
@@ -183,7 +184,7 @@ export class UnpackService {
           })
           .setParameter(
             'stockQuantity',
-            unpackDto.stockToUnpack * producto.productquantity,
+            Number(unpackDto.stockToUnpack * producto.productquantity),
           )
           .execute();
         this.logger.log(
