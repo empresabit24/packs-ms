@@ -13,7 +13,7 @@ export class preciostipocliente {
   @Column('int')
   idtipocliente: number;
 
-  @Column('numeric', { default: 1 })
+  @Column('numeric', { default: 0.001 })
   desde: number;
 
   @Column('numeric', { default: 10000 })
