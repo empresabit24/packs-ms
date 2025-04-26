@@ -1,7 +1,6 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from './infraestructure/auth/auth.guard';
-import { CreateTables1707241534318 } from './migrations/1707241534318-CreateTables';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 export const createTypeOrmOptions = async (
@@ -27,7 +26,7 @@ export const createTypeOrmOptions = async (
     database: access.primary_db.db_name,
     autoLoadEntities: true,
     schema: 'sch_main',
-    migrations: [CreateTables1707241534318],
-    migrationsRun: true,
+    //migrations: [CreateTables1707241534318],
+    //migrationsRun: true,
   };
 };
