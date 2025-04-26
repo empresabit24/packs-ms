@@ -22,7 +22,7 @@ export class productospack {
   @Column('int')
   idproducto: number;
 
-  @Column('int')
+  @Column('numeric')
   productquantity: number;
 
   @ManyToOne(() => packs, (pack) => pack.productos)
