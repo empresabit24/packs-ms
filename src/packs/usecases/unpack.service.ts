@@ -78,6 +78,8 @@ export class UnpackService {
       // OBTENEMOS EL NOMBRE DEL PACK:
       const packName = await this.getNameProducto(this.idProducto);
 
+      this.logger.log(`SE OBTUVO EL NOMBRE DEL PACK ${packName}`);
+
       /*// Cambiar el estado del idproducto a inactivo
             await this.productosRepository
               .createQueryBuilder()
@@ -107,6 +109,8 @@ export class UnpackService {
         })
         .getOne();
 
+      this.logger.log(`OBTENEMOS STOCK ACTUAL DEL PACK ${packToUpdate.stock}`);
+
       // VALIDAR QUE LA CANTIDAD A DESARMAR SEA MENOR O IGUAL AL STOCK DEL PACK
       if (unpackDto.stockToUnpack > packToUpdate.stock) {
         throw new BadRequestException(
@@ -122,6 +126,8 @@ export class UnpackService {
       packToUpdate.stock_presentacion = Number(packToUpdate.stock);
 
       await this.stockProductosTiendaRepository.save(packToUpdate);
+
+      this.logger.log(`GUARDAMOS EL NUEVO STOCK DEL PACK ${packToUpdate.stock}`);
 
       // AGREGAR A MOVIMIENTOS EL NUEVO STOCK DEL PACK
       await this.movimientosRepository
@@ -140,6 +146,8 @@ export class UnpackService {
           },
         ])
         .execute();
+
+      this.logger.log(`AGREGAMOS A MOVIMIENTOS EL AJUSTE DE STOCK`);
 
       // DEVOLUCIÓN DE PRODUCTOS
       const productsInPack = await this.productosPackRepository
